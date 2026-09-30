@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { validateNewEntry } from "./entry";
+import { formatEntryTime, validateNewEntry } from "./entry";
+
+describe("방명록 글 시각 표기", () => {
+  it("한국 시간 기준 YYYY-MM-DD HH:mm으로 표기한다", () => {
+    expect(formatEntryTime("2026-09-30T06:30:22.234Z")).toBe("2026-09-30 15:30");
+  });
+
+  it("KST로 자정을 넘기면 다음 날 00시로 표기한다", () => {
+    expect(formatEntryTime("2026-12-31T15:05:00Z")).toBe("2027-01-01 00:05");
+  });
+});
 
 describe("새 방명록 글 검증", () => {
   it("올바른 입력은 앞뒤 공백을 제거한 값으로 통과한다", () => {

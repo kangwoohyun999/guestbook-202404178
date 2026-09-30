@@ -7,6 +7,24 @@ export type Entry = {
   updatedAt: string | null;
 };
 
+const KST_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+// 작성 시각·수정 시각을 한국 시간 YYYY-MM-DD HH:mm으로 표기한다.
+export function formatEntryTime(iso: string): string {
+  const parts = Object.fromEntries(
+    KST_FORMAT.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+}
+
 export type NewEntryInput = {
   authorName: string;
   message: string;
@@ -15,8 +33,10 @@ export type NewEntryInput = {
 
 export type Validation<T> = { ok: true; value: T } | { ok: false; error: string };
 
+export const MESSAGE_MAX_LENGTH = 500;
+
 // 이모지 등 서로게이트 쌍도 한 글자로 센다.
-function charCount(s: string): number {
+export function charCount(s: string): number {
   return Array.from(s).length;
 }
 
@@ -36,9 +56,9 @@ export function validateNewEntry(input: {
   if (authorName === null) {
     return { ok: false, error: "작성자 이름은 1~20자로 입력해주세요." };
   }
-  const message = trimmedWithin(input.message, 1, 500);
+  const message = trimmedWithin(input.message, 1, MESSAGE_MAX_LENGTH);
   if (message === null) {
-    return { ok: false, error: "메시지는 1~500자로 입력해주세요." };
+    return { ok: false, error: `메시지는 1~${MESSAGE_MAX_LENGTH}자로 입력해주세요.` };
   }
   const { password } = input;
   if (typeof password !== "string" || charCount(password) < 4 || charCount(password) > 20) {
