@@ -1,8 +1,7 @@
+import { BAD_REQUEST_MESSAGE, jsonError, readJsonObject, SERVER_ERROR_MESSAGE } from "@/lib/api";
 import { getSql, toEntry, type EntryRow } from "@/lib/db";
 import { validateNewEntry } from "@/lib/entry";
 import { hashEntryPassword } from "@/lib/entry-password";
-
-const SERVER_ERROR = "잠시 후 다시 시도해주세요.";
 
 export async function GET() {
   try {
@@ -15,21 +14,17 @@ export async function GET() {
     return Response.json({ entries: rows.map(toEntry) });
   } catch (err) {
     console.error("GET /api/entries", err);
-    return Response.json({ error: SERVER_ERROR }, { status: 500 });
+    return jsonError(500, SERVER_ERROR_MESSAGE);
   }
 }
 
 export async function POST(request: Request) {
-  const body: unknown = await request.json().catch(() => null);
-  if (typeof body !== "object" || body === null) {
-    return Response.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });
-  }
+  const body = await readJsonObject(request);
+  if (!body) return jsonError(400, BAD_REQUEST_MESSAGE);
 
-  const { authorName, message, password } = body as Record<string, unknown>;
+  const { authorName, message, password } = body;
   const result = validateNewEntry({ authorName, message, password });
-  if (!result.ok) {
-    return Response.json({ error: result.error }, { status: 400 });
-  }
+  if (!result.ok) return jsonError(400, result.error);
 
   try {
     const sql = getSql();
@@ -42,6 +37,6 @@ export async function POST(request: Request) {
     return Response.json({ entry: toEntry(row) }, { status: 201 });
   } catch (err) {
     console.error("POST /api/entries", err);
-    return Response.json({ error: SERVER_ERROR }, { status: 500 });
+    return jsonError(500, SERVER_ERROR_MESSAGE);
   }
 }

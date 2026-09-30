@@ -1,5 +1,83 @@
 import { describe, expect, it } from "vitest";
-import { formatEntryTime, validateNewEntry } from "./entry";
+import {
+  formatEntryTime,
+  parseEntryId,
+  validateEntryDeletion,
+  validateMessageEdit,
+  validateNewEntry,
+} from "./entry";
+
+describe("방명록 글 삭제 요청 검증", () => {
+  it("글 비밀번호를 그대로 넘긴다", () => {
+    expect(validateEntryDeletion({ password: " 1234" })).toEqual({
+      ok: true,
+      value: { password: " 1234" },
+    });
+  });
+
+  it.each([
+    ["비어 있으면", ""],
+    ["문자열이 아니면", 1234],
+  ])("글 비밀번호가 %s 거부한다", (_, password) => {
+    expect(validateEntryDeletion({ password })).toEqual({
+      ok: false,
+      error: "글 비밀번호를 입력해주세요.",
+    });
+  });
+});
+
+describe("메시지 수정 검증", () => {
+  it("새 메시지는 앞뒤 공백을 제거하고, 글 비밀번호는 그대로 둔다", () => {
+    expect(validateMessageEdit({ message: " 고친 글\n ", password: " 12 " })).toEqual({
+      ok: true,
+      value: { message: "고친 글", password: " 12 " },
+    });
+  });
+
+  it.each([
+    ["1자", "a"],
+    ["500자", "가".repeat(500)],
+  ])("새 메시지는 %s를 허용한다", (_, message) => {
+    expect(validateMessageEdit({ message, password: "1234" }).ok).toBe(true);
+  });
+
+  it.each([
+    ["비어 있으면", ""],
+    ["공백과 줄바꿈뿐이면", " \n "],
+    ["501자이면", "가".repeat(501)],
+  ])("새 메시지가 %s 작성 때와 같이 거부한다", (_, message) => {
+    expect(validateMessageEdit({ message, password: "1234" })).toEqual({
+      ok: false,
+      error: "메시지는 1~500자로 입력해주세요.",
+    });
+  });
+
+  it.each([
+    ["비어 있으면", ""],
+    ["없으면", undefined],
+  ])("글 비밀번호가 %s 거부한다", (_, password) => {
+    expect(validateMessageEdit({ message: "고친 글", password })).toEqual({
+      ok: false,
+      error: "글 비밀번호를 입력해주세요.",
+    });
+  });
+});
+
+describe("방명록 글 id 해석", () => {
+  it.each([
+    ["1", 1],
+    ["42", 42],
+  ])("양의 정수 %s는 id로 읽는다", (raw, id) => {
+    expect(parseEntryId(raw)).toBe(id);
+  });
+
+  it.each(["0", "-1", "1.5", "abc", "", " 1", "1e3", "01", "99999999999999999999"])(
+    "%j는 id가 아니다",
+    (raw) => {
+      expect(parseEntryId(raw)).toBeNull();
+    },
+  );
+});
 
 describe("방명록 글 시각 표기", () => {
   it("한국 시간 기준 YYYY-MM-DD HH:mm으로 표기한다", () => {

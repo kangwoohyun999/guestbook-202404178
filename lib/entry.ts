@@ -25,6 +25,13 @@ export function formatEntryTime(iso: string): string {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
+// URL의 [id]를 방명록 글 id로 읽는다. 양의 정수가 아니면 null(→ 404).
+export function parseEntryId(raw: string): number | null {
+  if (!/^[1-9]\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 export type NewEntryInput = {
   authorName: string;
   message: string;
@@ -47,6 +54,13 @@ function trimmedWithin(value: unknown, min: number, max: number): string | null 
   return n >= min && n <= max ? trimmed : null;
 }
 
+function validateMessage(value: unknown): Validation<string> {
+  const message = trimmedWithin(value, 1, MESSAGE_MAX_LENGTH);
+  return message === null
+    ? { ok: false, error: `메시지는 1~${MESSAGE_MAX_LENGTH}자로 입력해주세요.` }
+    : { ok: true, value: message };
+}
+
 export function validateNewEntry(input: {
   authorName: unknown;
   message: unknown;
@@ -56,13 +70,37 @@ export function validateNewEntry(input: {
   if (authorName === null) {
     return { ok: false, error: "작성자 이름은 1~20자로 입력해주세요." };
   }
-  const message = trimmedWithin(input.message, 1, MESSAGE_MAX_LENGTH);
-  if (message === null) {
-    return { ok: false, error: `메시지는 1~${MESSAGE_MAX_LENGTH}자로 입력해주세요.` };
-  }
+  const message = validateMessage(input.message);
+  if (!message.ok) return message;
   const { password } = input;
   if (typeof password !== "string" || charCount(password) < 4 || charCount(password) > 20) {
     return { ok: false, error: "비밀번호는 4~20자로 입력해주세요." };
   }
-  return { ok: true, value: { authorName, message, password } };
+  return { ok: true, value: { authorName, message: message.value, password } };
+}
+
+export type MessageEditInput = { message: string; password: string };
+
+// 수정·삭제 때 글 비밀번호는 입력 여부만 본다. 맞는지는 저장된 해시와 대조해 판단한다.
+function requirePasswordInput(value: unknown): Validation<string> {
+  return typeof value === "string" && value !== ""
+    ? { ok: true, value }
+    : { ok: false, error: "글 비밀번호를 입력해주세요." };
+}
+
+export function validateMessageEdit(input: {
+  message: unknown;
+  password: unknown;
+}): Validation<MessageEditInput> {
+  const message = validateMessage(input.message);
+  if (!message.ok) return message;
+  const password = requirePasswordInput(input.password);
+  if (!password.ok) return password;
+  return { ok: true, value: { message: message.value, password: password.value } };
+}
+
+export function validateEntryDeletion(input: { password: unknown }): Validation<{ password: string }> {
+  const password = requirePasswordInput(input.password);
+  if (!password.ok) return password;
+  return { ok: true, value: { password: password.value } };
 }
